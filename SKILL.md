@@ -22,18 +22,24 @@ bash scripts/setup.sh
 装：`ffmpeg`、`BBDown`（下 B 站视频/音轨）、Python 包 `mlx-whisper`（Apple Silicon 本地 ASR）、
 `fugashi`+`unidic-lite`（分词/还原原形/读音）、`markdown`（出 HTML）。
 
-## 词表数据（一次性准备）
+## 词表数据（已内置全量，一般无需重建）
 
-把 MOJi「考前对策」N1/N2 词表（markdown 表格）放进 `data/raw/`，字段顺序：
-`序号 | 发音 | 音调 | 单词 | 词性 | 释义 | 例句`。文件名建议 `n1_*.md` / `n2_*.md`，
-用文件名前缀标记级别。然后：
+仓库已内置 **MOJi「考前对策」全量重点词库**：`data/moji_n1.json`（N1 1009 词）、
+`data/moji_n2.json`（N2 736 词，重复归 N2），含发音/音调/词性/释义/例句全字段，开箱即用。
 
+需要重建时（换新版词表）：
+- 若手上是 **MOJi 官方导出的 PDF**（`序号|发音|音调|单词|词性|释义|例句` 七列表），先转成原始表：
+  ```bash
+  python3 scripts/pdf_to_raw.py \
+      "N1_1-1000.pdf:n1_1_1000" "N1_1001-2000.pdf:n1_1001_2000" "N2_1-1000.pdf:n2_1_1000"
+  # -> data/raw/*.md（pdfplumber 抽表 → 单行 pipe 表）
+  ```
+- 若已是 markdown 表格，直接放进 `data/raw/`（文件名前缀 `n1_*` / `n2_*` 标记级别）。
+
+然后统一解析：
 ```bash
 python3 scripts/parse_moji.py     # data/raw/*.md -> data/moji_n1.json / data/moji_n2.json
 ```
-
-仓库已内置 `data/moji_matched.json`（银魂样例命中的 41 词，含完整字段），
-可直接作为格式参考；`data/moji_n1.json`/`moji_n2.json` 为全量参考库（越全，可命中越多）。
 
 ## 整体流程（5 步）
 
@@ -69,9 +75,13 @@ python3 scripts/match_moji.py asr_full.json vocab_full_hits.json \
 
 ### Step 4　出表 + 渲染 HTML
 ```bash
-python3 scripts/build_table.py     # -> <标题>_MOJi重点词表.md
+python3 scripts/build_table.py --hits vocab_full_hits.json \
+    --title "<标题>" --url <视频地址> --out <标题>_MOJi重点词表.md
 python3 scripts/make_html.py <标题>_MOJi重点词表.md <标题>_MOJi重点词表.html
 ```
+`match_moji.py` 已把命中词的发音/音调/词性/释义/例句一并带出，故 `build_table.py`
+**仅凭 `--hits` 即可出表**；如需附加人工「助记/深挖」，再用 `--matched moji_matched.json`
+补进（格式见 `data/moji_matched.json`）。`--deepdive <file.md>` 可把 ljg-word 风格深挖追加到表后。
 表格列：`序号 | 发音 | 音调 | 单词 | 词性 | 释义 | 例句 | 片中例句（时间） | 助记 | 深挖`，
 按 N2 / N1 分组。HTML 为**白底浅色主题**，**单词/释义/助记三列带背景色**便于记忆。
 
