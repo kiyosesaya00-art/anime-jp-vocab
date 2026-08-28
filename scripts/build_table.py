@@ -51,7 +51,9 @@ def main():
         for r in rows:
             if r["level"] != level: continue
             i += 1
-            clip = f'{esc(r["sentence"])}（{r["mmss"]}）'
+            cid = int(round(r["time"] * 100))
+            clip = (f'{esc(r["sentence"])}'
+                    f'<span class="play" data-src="clips/c{cid}.m4a" title="点击播放原声">🔊{r["mmss"]}</span>')
             out.append(f'| {i} | {r["reading"]} | {r["pitch"]} | {r["moji"]} | {esc(r["pos"])} '
                        f'| {esc(r["meaning"])} | {esc(r["example"])} | {clip} '
                        f'| {esc(r.get("mnemonic","—"))} | {esc(r.get("insight","—"))} |')

@@ -35,7 +35,7 @@ python3 scripts/parse_moji.py     # data/raw/*.md -> data/moji_n1.json / data/mo
 仓库已内置 `data/moji_matched.json`（银魂样例命中的 41 词，含完整字段），
 可直接作为格式参考；`data/moji_n1.json`/`moji_n2.json` 为全量参考库（越全，可命中越多）。
 
-## 整体流程（4 步）
+## 整体流程（5 步）
 
 ### Step 1　取音轨
 用 BBDown 下目标视频音频（或用户已有的音视频文件）。合集/多 P 需注意片段偏移 `offset`（秒），
@@ -64,6 +64,23 @@ python3 scripts/make_html.py <标题>_MOJi重点词表.md <标题>_MOJi重点词
 ```
 表格列：`序号 | 发音 | 音调 | 单词 | 词性 | 释义 | 例句 | 片中例句（时间） | 助记 | 深挖`，
 按 N2 / N1 分组。HTML 为**白底浅色主题**，**单词/释义/助记三列带背景色**便于记忆。
+
+### Step 5　切片原声（片中例句点击即播）
+`build_table.py` 会把「片中例句」的时间戳渲染成可点击的 `🔊mm:ss` 按钮，指向
+`clips/c<起始厘秒>.m4a`。用 ffmpeg 从音轨切出对应小片段：
+
+```bash
+python3 scripts/make_clips.py \
+    --asr asr_full.json \
+    --audio <audio> \
+    --hits vocab_full_hits.json \
+    --out-dir clips [--offset 0]
+```
+- 每个片中例句时间切一段 `[start, 下一句 start]`（上限 `--max` 秒），命名 `c<round(start*100)>.m4a`，
+  与表格里的 `data-src` 自动对齐；重复时间共用同一片段；
+- 合集/多 P 若音轨是子片段，用 `--offset` 把整集时间轴换算回本段音轨；
+- HTML 用相对路径引用 `clips/`，**把 `.html` 和 `clips/` 目录一起拷贝/分享即可离线点播**；
+- 语法表由同一 `build_table.py` 渲染，故同样自带点播按钮，对其 `--hits` 跑一次 `make_clips.py` 即可。
 
 ## 语法抽取（第二产出）
 
@@ -97,5 +114,6 @@ python3 scripts/match_grammar.py     # 读 asr_full.json -> grammar_hits_raw.jso
 
 ## 输出给用户
 
-给出成品文件路径（.md + .html）、命中词数（N2/N1 各多少）、几条亮点深挖示例。
-样例见 `examples/gintama_ep393434/`（银魂 ep393434 01-02 合集，命中 41 词 + 10 张深挖卡）。
+给出成品文件路径（.md + .html + `clips/` 目录）、命中词数（N2/N1 各多少）、几条亮点深挖示例，
+并提示「片中例句的 🔊 时间戳可点击播放原声，分享时连同 `clips/` 一起拷贝」。
+样例见 `examples/gintama_ep393434/`（银魂 ep393434 01-02 合集，命中 41 词 + 10 张深挖卡，片中例句可点播）。

@@ -11,6 +11,10 @@ venv/
 *.mp4
 *.flv
 
+# 例外：样例的片中例句原声切片（小，随 HTML 分享，供 demo 点播）
+!examples/**/clips/
+!examples/**/clips/*.m4a
+
 # ASR 原始转写（可由脚本再生，体积大）
 asr_full.json
 grammar_hits_raw.json
