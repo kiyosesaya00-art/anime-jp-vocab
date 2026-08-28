@@ -21,27 +21,37 @@ def esc(s): return str(s).replace("|", "｜")
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--matched", default="moji_matched.json")
+    ap.add_argument("--matched", default="",
+                    help="可选：{anime_word: 全字段+助记/深挖}。留空则直接用 --hits 的全字段出表")
     ap.add_argument("--hits", default="vocab_full_hits.json")
     ap.add_argument("--title", required=True)
     ap.add_argument("--url", default="")
     ap.add_argument("--deepdive", default="")
+    ap.add_argument("--no-audio", action="store_true",
+                    help="片中例句只显示时间戳，不生成可点击播放按钮（跳过 Step 5）")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
 
-    moji = json.load(open(a.matched, encoding="utf-8"))
     hits = json.load(open(a.hits, encoding="utf-8"))
 
-    info = {}
-    for h in hits:
-        info.setdefault(h["word"], h)
-
     rows = []
-    for aw, m in moji.items():
-        h = info.get(aw)
-        if not h:
-            print("!! not found in video:", aw); continue
-        rows.append({**m, "sentence": h["sentence"], "mmss": h["mmss"], "time": h["time"]})
+    if a.matched:
+        moji = json.load(open(a.matched, encoding="utf-8"))
+        info = {}
+        for h in hits:
+            info.setdefault(h["word"], h)
+        for aw, m in moji.items():
+            h = info.get(aw)
+            if not h:
+                print("!! not found in video:", aw); continue
+            rows.append({**m, "sentence": h["sentence"], "mmss": h["mmss"], "time": h["time"]})
+    else:
+        seen = set()
+        for h in hits:
+            if not h.get("moji") or h["word"] in seen:
+                continue
+            seen.add(h["word"])
+            rows.append(h)
     rows.sort(key=lambda r: r["time"])
 
     def table(level):
@@ -52,8 +62,11 @@ def main():
             if r["level"] != level: continue
             i += 1
             cid = int(round(r["time"] * 100))
-            clip = (f'{esc(r["sentence"])}'
-                    f'<span class="play" data-src="clips/c{cid}.m4a" title="点击播放原声">🔊{r["mmss"]}</span>')
+            if a.no_audio:
+                clip = f'{esc(r["sentence"])}（{r["mmss"]}）'
+            else:
+                clip = (f'{esc(r["sentence"])}'
+                        f'<span class="play" data-src="clips/c{cid}.m4a" title="点击播放原声">🔊{r["mmss"]}</span>')
             out.append(f'| {i} | {r["reading"]} | {r["pitch"]} | {r["moji"]} | {esc(r["pos"])} '
                        f'| {esc(r["meaning"])} | {esc(r["example"])} | {clip} '
                        f'| {esc(r.get("mnemonic","—"))} | {esc(r.get("insight","—"))} |')

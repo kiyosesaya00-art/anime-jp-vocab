@@ -20,16 +20,20 @@ def mmss(t):
     return f"{int(t)//60:02d}:{int(t)%60:02d}"
 
 def load_moji(paths):
-    """Return dict: headword -> level, and reading -> (headword,level) for kana fallback."""
+    """Return dict: headword -> full meta, and reading -> (headword,meta) kana fallback."""
     by_word, by_reading = {}, {}
     for p in paths:
         data = json.load(open(p, encoding="utf-8"))
         for w, meta in data.items():
             lv = meta.get("level") or ("N1" if "n1" in p.lower() else "N2")
-            by_word[w] = lv
+            m = {"moji": w, "level": lv,
+                 "reading": meta.get("reading", ""), "pitch": meta.get("pitch", ""),
+                 "pos": meta.get("pos", ""), "meaning": meta.get("meaning", ""),
+                 "example": meta.get("example", "")}
+            by_word[w] = m
             r = meta.get("reading")
             if r:
-                by_reading.setdefault(hira(r), (w, lv))
+                by_reading.setdefault(hira(r), m)
     return by_word, by_reading
 
 def main():
@@ -60,10 +64,9 @@ def main():
 
             hit = None
             if lemma in by_word:
-                hit = (lemma, by_word[lemma])
+                hit = by_word[lemma]
             elif reading in by_reading:  # kana-written headwords, e.g. まとも
-                mw, lv = by_reading[reading]
-                hit = (mw, lv)
+                hit = by_reading[reading]
             if not hit:
                 continue
             if conf < a.min_conf:
@@ -73,8 +76,10 @@ def main():
                 hits[key]["count"] += 1
                 continue
             hits[key] = {
-                "word": lemma, "reading": reading, "level": hit[1],
-                "moji": hit[0], "time": round(s["start"], 2), "mmss": mmss(s["start"]),
+                "word": lemma, "reading": hit["reading"] or reading, "level": hit["level"],
+                "moji": hit["moji"], "pitch": hit["pitch"], "pos": hit["pos"],
+                "meaning": hit["meaning"], "example": hit["example"],
+                "time": round(s["start"], 2), "mmss": mmss(s["start"]),
                 "conf": round(conf, 3), "count": 1, "sentence": text.strip(),
             }
 
